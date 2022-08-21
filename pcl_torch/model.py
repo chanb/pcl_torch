@@ -51,9 +51,9 @@ class Model:
         return self._v
 
     def compute_lprobs(self, obss, acts):
-        dist = Categorical(self._pi(obss))
+        dist = Categorical(logits=self._pi(obss))
         lprobs = dist.log_prob(acts)
-        return torch.sum(lprobs, dim=-1)
+        return lprobs
 
     def compute_acts(self, obss):
         dist = Categorical(logits=self._pi(obss))

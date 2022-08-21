@@ -2,7 +2,7 @@ import numpy as np
 
 
 class ReplayBuffer(object):
-    def __init__(self, max_len=100000, alpha=1, min_episodes=32):
+    def __init__(self, max_len=100000, alpha=1, min_episodes=4):
         self.max_len = max_len
         self.alpha = alpha
         self.min_episodes = min_episodes

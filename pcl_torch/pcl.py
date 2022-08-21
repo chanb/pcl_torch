@@ -102,9 +102,12 @@ class PCL:
             if done:
                 ep_i += 1
                 obss.append(obs)
-                self.buffer.add(
-                    {"obss": obss, "acts": acts, "rews": rews, "truncs": truncs}
-                )
+                self.buffer.add({
+                    "obss": np.array(obss),
+                    "acts": np.array(acts),
+                    "rews": np.array(rews),
+                    "truncs": np.array(truncs)
+                })
 
                 self.summary_writer.add_scalar("ep_return", np.sum(rews), ep_i)
                 self.summary_writer.add_scalar("ep_length", len(rews), ep_i)
@@ -116,5 +119,5 @@ class PCL:
                 done = False
                 obs = env.reset()
 
-        if self.buffer.trainable:
-            self.update()
+            if self.buffer.trainable:
+                self.update()
