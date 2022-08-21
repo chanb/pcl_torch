@@ -50,7 +50,7 @@ class PCL:
 
     def update(self):
         for update_i in range(self.num_updates_per_step):
-            episode = self.replay_buffer.sample()
+            episode = self.buffer.sample()
 
             curr_horizon = self.rollout_horizon
             if curr_horizon > len(episode["acts"]):
@@ -65,9 +65,9 @@ class PCL:
                 acts.append(episode["acts"][segment_i : segment_i + curr_horizon])
                 rews.append(episode["rews"][segment_i : segment_i + curr_horizon])
 
-            obss = torch.stack(obss)
-            acts = torch.stack(acts)
-            rews = torch.stack(rews)
+            obss = torch.tensor(obss)
+            acts = torch.tensor(acts)
+            rews = torch.tensor(rews)
 
             self.v_opt.zero_grad()
             self.pi_opt.zero_grad()
@@ -116,5 +116,5 @@ class PCL:
                 done = False
                 obs = env.reset()
 
-        if self.replay_buffer.trainable:
+        if self.buffer.trainable:
             self.update()

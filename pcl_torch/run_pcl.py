@@ -4,6 +4,7 @@ import numpy as np
 import os
 import torch
 
+from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
 
 from pcl_torch.model import Model
@@ -22,12 +23,14 @@ def set_seed(seed=None):
 
 def run_pcl(args):
     print("Set seed to {}".format(set_seed(args.seed)))
-    os.makedirs(args.log_dir, exist_ok=True)
-    summary_writer = SummaryWriter(log_dir=os.path.join(args.log_dir, "tensorboard"))
+    time_tag = datetime.strftime(datetime.now(), "%m-%d-%y_%H_%M_%S")
+    save_path = f"{args.log_dir}/{time_tag}"
+    os.makedirs(save_path, exist_ok=True)
+    summary_writer = SummaryWriter(log_dir=os.path.join(save_path, "tensorboard"))
 
     env = gym.make(args.env, new_step_api=True)
     env = gym.wrappers.RecordVideo(
-        env, os.path.join(args.log_dir, "videos"), new_step_api=True
+        env, os.path.join(save_path, "videos"), new_step_api=True
     )
 
     model = Model(env.observation_space.shape[0], env.action_space.n)
