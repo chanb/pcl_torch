@@ -7,21 +7,15 @@ class ReplayBuffer(object):
         self.alpha = alpha
         self.min_episodes = min_episodes
         self.buffer = []
-        # weight is not normalized
-        self.weight = np.array([])
 
     def add(self, episode):
         self.buffer.append(episode)
-        self.weight = np.append(
-            self.weight, np.exp(self.alpha * np.sum(episode["rews"]))
-        )
         if len(self.buffer) > self.max_len:
             delete_ind = np.random.randint(len(self.buffer))
             del self.buffer[delete_ind]
-            self.weight = np.delete(self.weight, delete_ind)
 
     def sample(self):
-        return np.random.choice(self.buffer, p=self.weight / self.weight.sum())
+        return np.random.choice(self.buffer)
 
     @property
     def trainable(self):
