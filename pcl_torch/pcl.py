@@ -1,8 +1,29 @@
+import numpy as np
 import torch
 
 
+class DummySummaryWriter:
+    def nop(*args, **kwargs):
+        pass
+
+    def __getattr__(self, _):
+        return self.nop
+
+
 class PCL:
-    def __init__(self, model, pi_opt, v_opt, buffer, num_updates_per_step=1, rollout_horizon=20, gamma=1., entropy_temp=0.5, target_entropy=None):
+    def __init__(
+        self,
+        model,
+        pi_opt,
+        v_opt,
+        buffer,
+        num_updates_per_step=1,
+        rollout_horizon=20,
+        gamma=1.0,
+        entropy_temp=0.5,
+        target_entropy=None,
+        summary_writer=DummySummaryWriter(),
+    ):
         self.model = model
         self.pi_opt = pi_opt
         self.v_opt = v_opt
@@ -12,14 +33,20 @@ class PCL:
         self.entropy_temp = entropy_temp
         self.target_entropy = target_entropy
         self.num_updates_per_step = num_updates_per_step
+        self.summary_writer = summary_writer
+        self.step_i = 0
 
     def compute_loss(self, obss, acts, rews, discounting, curr_horizon):
         v_curr = self.model.compute_values(obss[:, 0])
         v_last = self.model.compute_values(obss[:, -1])
         lprobs = self.model.compute_lprobs(obss, acts)
         disc_ent_reg_rews = (rews - self.entropy_temp * lprobs) * discounting
-        loss = -v_curr + self.gamma ** curr_horizon * v_last + torch.sum(disc_ent_reg_rews, axis=-1)
-        return torch.mean(loss ** 2)
+        loss = (
+            -v_curr
+            + self.gamma**curr_horizon * v_last
+            + torch.sum(disc_ent_reg_rews, axis=-1)
+        )
+        return torch.mean(loss**2)
 
     def update(self):
         for update_i in range(self.num_updates_per_step):
@@ -34,9 +61,9 @@ class PCL:
             acts = []
             rews = []
             for segment_i in range(len(episode["acts"]) - curr_horizon + 1):
-                obss.append(episode["obss"][segment_i:segment_i + curr_horizon])
-                acts.append(episode["acts"][segment_i:segment_i + curr_horizon])
-                rews.append(episode["rews"][segment_i:segment_i + curr_horizon])
+                obss.append(episode["obss"][segment_i : segment_i + curr_horizon])
+                acts.append(episode["acts"][segment_i : segment_i + curr_horizon])
+                rews.append(episode["rews"][segment_i : segment_i + curr_horizon])
 
             obss = torch.stack(obss)
             acts = torch.stack(acts)
@@ -49,14 +76,19 @@ class PCL:
             self.pi_opt.step()
             self.v_opt.step()
 
+            self.summary_writer.add_scalar(
+                "loss", loss.cpu().detach().numpy(), self.step_i
+            )
+
     def train(self, env, num_steps):
         obss = []
         acts = []
         rews = []
         truncs = []
         done = False
+        ep_i = 0
         obs = env.reset()
-        for step_i in range(num_steps):
+        for self.step_i in range(num_steps):
             act = self.model.compute_acts(torch.tensor(obs))
             act = act.cpu().detach().numpy()
             next_obs, rew, done, truncated, info = env.step(act)
@@ -68,13 +100,14 @@ class PCL:
             obs = next_obs
 
             if done:
+                ep_i += 1
                 obss.append(obs)
-                self.buffer.add({
-                    "obss": obss,
-                    "acts": acts,
-                    "rews": rews,
-                    "truncs": truncs
-                })
+                self.buffer.add(
+                    {"obss": obss, "acts": acts, "rews": rews, "truncs": truncs}
+                )
+
+                self.summary_writer.add_scalar("ep_return", np.sum(rews), ep_i)
+                self.summary_writer.add_scalar("ep_length", len(rews), ep_i)
 
                 obss = []
                 acts = []
@@ -82,6 +115,6 @@ class PCL:
                 truncs = []
                 done = False
                 obs = env.reset()
-        
+
         if self.replay_buffer.trainable:
             self.update()
