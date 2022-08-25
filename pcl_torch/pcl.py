@@ -17,7 +17,7 @@ class PCL:
         pi_opt,
         v_opt,
         buffer,
-        num_updates_per_step=1,
+        batch_size=1,
         rollout_horizon=20,
         gamma=1.0,
         entropy_temp=0.5,
@@ -32,7 +32,7 @@ class PCL:
         self.gamma = gamma
         self.entropy_temp = entropy_temp
         self.target_entropy = target_entropy
-        self.num_updates_per_step = num_updates_per_step
+        self.batch_size = batch_size
         self.summary_writer = summary_writer
         self.step_i = 0
 
@@ -49,7 +49,10 @@ class PCL:
         return torch.mean(loss**2)
 
     def update(self):
-        for update_i in range(self.num_updates_per_step):
+        self.v_opt.zero_grad()
+        self.pi_opt.zero_grad()
+        total_loss = 0.
+        for _ in range(self.batch_size):
             episode = self.buffer.sample()
 
             curr_horizon = self.rollout_horizon
@@ -60,25 +63,24 @@ class PCL:
             obss = []
             acts = []
             rews = []
-            for segment_i in range(len(episode["acts"]) - curr_horizon + 1):
-                obss.append(episode["obss"][segment_i : segment_i + curr_horizon])
-                acts.append(episode["acts"][segment_i : segment_i + curr_horizon])
-                rews.append(episode["rews"][segment_i : segment_i + curr_horizon])
+            start_idx = np.random.randint(0, len(episode["acts"]) - curr_horizon + 1)
+            obss.append(episode["obss"][start_idx : start_idx + curr_horizon])
+            acts.append(episode["acts"][start_idx : start_idx + curr_horizon])
+            rews.append(episode["rews"][start_idx : start_idx + curr_horizon])
 
             obss = torch.tensor(obss)
             acts = torch.tensor(acts)
             rews = torch.tensor(rews)
 
-            self.v_opt.zero_grad()
-            self.pi_opt.zero_grad()
             loss = self.compute_loss(obss, acts, rews, discounting, curr_horizon)
             loss.backward()
-            self.pi_opt.step()
-            self.v_opt.step()
+            total_loss += loss.cpu().detach().numpy()
 
-            self.summary_writer.add_scalar(
-                "loss", loss.cpu().detach().numpy(), self.step_i
-            )
+        self.summary_writer.add_scalar(
+            "loss", total_loss, self.step_i
+        )
+        self.pi_opt.step()
+        self.v_opt.step()
 
     def train(self, env, num_steps):
         obss = []

@@ -47,7 +47,7 @@ def run_pcl(args):
         pi_opt,
         v_opt,
         buffer,
-        args.num_updates_per_step,
+        args.batch_size,
         args.rollout_horizon,
         args.gamma,
         args.entropy_temp,
@@ -81,10 +81,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--num_updates_per_step",
+        "--batch_size",
         type=int,
-        default=1,
-        help="Number of updates to perform between each interaction step",
+        default=50,
+        help="Number of sub-trajectories to update from between each interaction step",
     )
     parser.add_argument(
         "--rollout_horizon",
