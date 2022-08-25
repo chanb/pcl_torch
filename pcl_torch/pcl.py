@@ -116,7 +116,7 @@ class PCL:
                 )
 
                 self.summary_writer.add_scalar("ep_return", np.sum(rews), ep_i)
-                self.summary_writer.add_scalar("ep_length", len(rews), ep_len)
+                self.summary_writer.add_scalar("ep_length", len(rews), ep_i)
 
                 obss = []
                 acts = []
