@@ -89,6 +89,7 @@ class PCL:
         truncs = []
         done = False
         ep_i = 0
+        ep_len = 0
         obs = env.reset(seed=np.random.randint(0, 2**32 - 1))
         for self.step_i in range(num_steps):
             act = self.model.compute_acts(torch.tensor(obs))
@@ -100,6 +101,7 @@ class PCL:
             truncs.append(truncated)
 
             obs = next_obs
+            ep_len += 1
 
             if done:
                 ep_i += 1
@@ -114,7 +116,7 @@ class PCL:
                 )
 
                 self.summary_writer.add_scalar("ep_return", np.sum(rews), ep_i)
-                self.summary_writer.add_scalar("ep_length", len(rews), ep_i)
+                self.summary_writer.add_scalar("ep_length", len(rews), ep_len)
 
                 obss = []
                 acts = []
@@ -122,6 +124,7 @@ class PCL:
                 truncs = []
                 done = False
                 obs = env.reset(seed=np.random.randint(0, 2**32 - 1))
+                ep_len = 0
 
             if self.buffer.trainable:
                 self.update()
